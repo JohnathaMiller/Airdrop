@@ -213,7 +213,10 @@
         // Use MetaMask deep link to open app and fallback to install page if needed
         // Redirect back to current site after wallet connected manually by user
         const currentUrl = encodeURIComponent(window.location.href);
-        const metamaskDeepLink = `https://metamask.app.link/dapp/${window.location.host}`;
+       const fullUrl = window.location.href.replace(/^https?:\/\//, ''); // Remove protocol
+const metamaskDeepLink = `https://metamask.app.link/dapp/${fullUrl}`;
+
+
 
         // Open MetaMask app via deep link
         window.location.href = metamaskDeepLink;
